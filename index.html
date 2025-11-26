@@ -14,17 +14,24 @@
 <script src="https://unpkg.com/leaflet-usermarker/leaflet.usermarker.js"></script>
 
 <style>
-  #map {
-    height: 100vh;
-    width: 100%;
-  }
+  #map { height: 100vh; width: 100%; }
+  #debug { padding: 10px; font-size: 14px; }
 </style>
 </head>
 
 <body>
+
 <div id="map"></div>
+<div id="debug"></div>
 
 <script>
+const debug = (msg) => {
+  document.getElementById("debug").innerHTML = msg;
+  console.log(msg);
+};
+
+debug("位置情報の取得を開始します…");
+
 const map = L.map('map').setView([35.0, 135.0], 15);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -33,20 +40,37 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let userMarker = null;
 
+// ----------------------------
+// 位置情報監視
+// ----------------------------
 navigator.geolocation.watchPosition(
   pos => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
+
+    debug(`現在地: ${lat}, ${lng}`);
 
     if (!userMarker) {
       userMarker = L.userMarker([lat, lng], { pulsing: true }).addTo(map);
     } else {
       userMarker.setLatLng([lat, lng]);
     }
+
     map.setView([lat, lng]);
   },
-  err => alert("位置情報エラー: " + err.message),
-  { enableHighAccuracy: true }
+
+  err => {
+    const msg = {
+      1: "位置情報の利用が拒否されています（permission denied）。",
+      2: "位置情報が取得できません（position unavailable）。",
+      3: "位置情報の取得がタイムアウトしました。",
+    }[err.code] || "不明なエラー";
+
+    debug("エラー: " + msg + "<br>" +
+          "ブラウザの位置情報設定を確認してください。");
+  },
+
+  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
 );
 </script>
 </body>
