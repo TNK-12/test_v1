@@ -1,77 +1,21 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>現在地テスト</title>
-
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- UserMarker -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet-usermarker/leaflet.usermarker.css">
-<script src="https://unpkg.com/leaflet-usermarker/leaflet.usermarker.js"></script>
-
-<style>
-  #map { height: 100vh; width: 100%; }
-  #debug { padding: 10px; font-size: 14px; }
-</style>
-</head>
-
-<body>
-
-<div id="map"></div>
-<div id="debug"></div>
-
-<script>
-const debug = (msg) => {
-  document.getElementById("debug").innerHTML = msg;
-  console.log(msg);
-};
-
-debug("位置情報の取得を開始します…");
-
-const map = L.map('map').setView([35.0, 135.0], 15);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
-}).addTo(map);
-
 let userMarker = null;
 
-// ----------------------------
-// 位置情報監視
-// ----------------------------
-navigator.geolocation.watchPosition(
-  pos => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
+navigator.geolocation.watchPosition(pos => {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
 
-    debug(`現在地: ${lat}, ${lng}`);
+  debug(`現在地: ${lat}, ${lng}`);
 
-    if (!userMarker) {
-      userMarker = L.userMarker([lat, lng], { pulsing: true }).addTo(map);
-    } else {
-      userMarker.setLatLng([lat, lng]);
-    }
+  if (!userMarker) {
+    userMarker = L.circleMarker([lat, lng], {
+      radius: 10,
+      color: "#136aec",
+      fillColor: "#2a93ff",
+      fillOpacity: 0.7
+    }).addTo(map);
+  } else {
+    userMarker.setLatLng([lat, lng]);
+  }
 
-    map.setView([lat, lng]);
-  },
-
-  err => {
-    const msg = {
-      1: "位置情報の利用が拒否されています（permission denied）。",
-      2: "位置情報が取得できません（position unavailable）。",
-      3: "位置情報の取得がタイムアウトしました。",
-    }[err.code] || "不明なエラー";
-
-    debug("エラー: " + msg + "<br>" +
-          "ブラウザの位置情報設定を確認してください。");
-  },
-
-  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-);
-</script>
-</body>
-</html>
+  map.setView([lat, lng]);
+});
