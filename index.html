@@ -13,10 +13,35 @@
 <script src="https://tnk-12.github.io/test_v1/leaflet.usermarker.js"></script>
 <link rel="stylesheet" href="https://tnk-12.github.io/test_v1/leaflet.usermarker.css">
 
+
+
+
 <style>
-  #map { height: 100vh; width: 100%; }
+  #map { height: 90vh; width: 100%; }
   #debug { padding: 10px; font-size: 14px; }
 </style>
+
+<style>
+#saveBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;   /* ← これがないと地図の下に潜る */
+  padding: 12px 18px;
+  font-size: 16px;
+}
+
+#clearBtn {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;   /* ← これがないと地図の下に潜る */
+  padding: 12px 18px;
+  font-size: 16px;
+}
+</style>
+
+
 </head>
 
 <body>
@@ -24,13 +49,13 @@
 <div id="map"></div>
 <div id="debug"></div>
 
-<script>
-const debug = (msg) => {
-  document.getElementById("debug").innerHTML = msg;
-  console.log(msg);
-};
+<div id="controls">
+  <button id="saveBtn">軌跡を保存</button>
+  <button id="clearBtn">軌跡をリセット</button>
+</div>
 
-debug("位置情報の取得を開始します…");
+
+<script>
 
 const map = L.map('map').setView([35.0, 135.0], 15);
 
@@ -40,38 +65,104 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let userMarker = null;
 
-// ----------------------------
-// 位置情報監視
-// ----------------------------
+
+//let map = L.map('map');
+let marker = null;
+let path = [];
+let record_acc = [];
+let polyline = L.polyline([], {
+  color: 'red',
+  weight: 4
+}).addTo(map);
+
 navigator.geolocation.watchPosition(
-  pos => {
+  (pos) => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
+    const current = [lat, lng];
 
-    debug(`現在地: ${lat}, ${lng}`);
+    const accuracy = pos.coords.accuracy; //水平精度
 
-    if (!userMarker) {
-      userMarker = L.userMarker([lat, lng], { pulsing: true }).addTo(map);
-    } else {
-      userMarker.setLatLng([lat, lng]);
+    // 初回
+    if (!marker) {
+      map.setView(current, 17);
+      marker = L.marker(current).addTo(map);
+
+      path.push(current);
+      polyline.setLatLngs(path);
+      return; // ← 初回はここで終了してOK
     }
 
-    map.setView([lat, lng]);
+    // 2回目以降
+    const last = path[path.length - 1];
+    const dist = map.distance(last, current);
+    
+
+    //⚪︎mごとに
+    if( 0 <= accuracy && accuracy <= 10 ){
+      if (dist >= 5) {
+        path.push(current);
+        polyline.setLatLngs(path); 
+        //console.log(current);    // console に座標の表示
+        //console.log(accuracy);  //  console に水平精度の表示
+        record_acc.push(accuracy);   //水平精度の保存
+      }
+    }
+    marker.setLatLng(current);
+    map.panTo(current);
   },
-
-  err => {
-    const msg = {
-      1: "位置情報の利用が拒否されています（permission denied）。",
-      2: "位置情報が取得できません（position unavailable）。",
-      3: "位置情報の取得がタイムアウトしました。",
-    }[err.code] || "不明なエラー";
-
-    debug("エラー: " + msg + "<br>" +
-          "ブラウザの位置情報設定を確認してください。");
+  (err) => {
+    alert("位置情報エラー: " + err.message);
   },
-
-  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 10000
+  }
 );
+
+document.getElementById("saveBtn").addEventListener("click", savePath);
+
+
+function savePath() {
+  if (path.length === 0) {
+    alert("保存する軌跡がありません");
+    return;
+  }
+
+  const record = {
+    date: new Date().toLocaleString(),
+    path: path
+  };
+
+  localStorage.setItem("running_path", JSON.stringify(record));
+  alert("軌跡を保存しました！");
+}
+
+
+//clear Btn 
+document.getElementById("clearBtn").addEventListener("click", printPath);
+
+
+function printPath() {
+  /*
+  let polyline = L.polyline([], {
+  color: 'blue',
+  weight: 4
+  }).addTo(map);
+
+  polyline.setLatLngs(path);
+
+  alert("軌跡を表示しました。");
+  */
+
+  const record_2 = {
+    date: new Date().toLocaleString(),
+    record_acc: record_acc
+  };
+  localStorage.setItem("running_accurate", JSON.stringify(record_2));
+  alert("水平精度を保存しました！");
+}
+
+
 </script>
-</body>
-</html>
